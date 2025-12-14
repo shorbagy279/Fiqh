@@ -1,11 +1,34 @@
-export const ProfileScreen = ({ navigate }) => {
-  const { user, logout } = useAuth();
+import React, { useState } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import { LogOut, ChevronRight, BookOpen, Star, Clock, Award, X } from 'lucide-react';
+import BottomNav from '../../components/shared/BottomNav';
+
+const ProfileScreen = ({ navigate }) => {
+  const { user, logout, updateUser } = useAuth();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showDifficultyModal, setShowDifficultyModal] = useState(false);
+  const [showRemindersModal, setShowRemindersModal] = useState(false);
 
   const handleLogout = () => {
     logout();
     navigate('login');
   };
+
+  const handleDifficultyChange = (level) => {
+    updateUser({ difficultyLevel: level });
+    setShowDifficultyModal(false);
+  };
+
+  const toggleReminders = () => {
+    updateUser({ dailyReminders: !user?.dailyReminders });
+    setShowRemindersModal(false);
+  };
+
+  const difficulties = [
+    { value: 'beginner', label: 'مبتدئ', description: 'أسئلة سهلة للمبتدئين', color: 'bg-green-100 text-green-600' },
+    { value: 'intermediate', label: 'متوسط', description: 'أسئلة متوسطة الصعوبة', color: 'bg-yellow-100 text-yellow-600' },
+    { value: 'advanced', label: 'متقدم', description: 'أسئلة صعبة للمتقدمين', color: 'bg-red-100 text-red-600' }
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 pb-24">
@@ -46,7 +69,8 @@ export const ProfileScreen = ({ navigate }) => {
           <SettingItem 
             icon={<BookOpen />} 
             label="المرجع الديني" 
-            value={user?.preferredMarjaName || "السيد السيستاني"} 
+            value={user?.preferredMarjaName || "السيد السيستاني"}
+            onClick={() => alert('قريباً: اختيار المرجع الديني')}
           />
           <SettingItem 
             icon={<Star />} 
@@ -55,17 +79,20 @@ export const ProfileScreen = ({ navigate }) => {
               user?.difficultyLevel === 'beginner' ? 'مبتدئ' :
               user?.difficultyLevel === 'intermediate' ? 'متوسط' :
               user?.difficultyLevel === 'advanced' ? 'متقدم' : 'متوسط'
-            } 
+            }
+            onClick={() => setShowDifficultyModal(true)}
           />
           <SettingItem 
             icon={<Clock />} 
             label="التذكيرات اليومية" 
-            value={user?.dailyReminders ? "مفعّل" : "معطّل"} 
+            value={user?.dailyReminders ? "مفعّل" : "معطّل"}
+            onClick={() => setShowRemindersModal(true)}
           />
           <SettingItem 
             icon={<Award />} 
             label="الإنجازات" 
-            value={`${user?.badges?.length || 0} شارة`} 
+            value={`${user?.badges?.length || 0} شارة`}
+            onClick={() => alert('قريباً: عرض جميع الإنجازات')}
           />
         </div>
 
@@ -73,7 +100,7 @@ export const ProfileScreen = ({ navigate }) => {
         <div className="space-y-3">
           <button 
             onClick={() => setShowLogoutConfirm(true)}
-            className="w-full bg-white rounded-xl p-4 shadow-lg text-red-600 font-bold hover:bg-red-50 transition-all flex items-center justify-center gap-2 border-2 border-red-200"
+            className="w-full bg-white rounded-xl p-4 shadow-lg text-red-600 font-bold hover:bg-red-50 transition-all flex items-center justify-center gap-2 border-2 border-red-200 active:scale-98"
           >
             <LogOut size={20} />
             تسجيل الخروج
@@ -81,28 +108,92 @@ export const ProfileScreen = ({ navigate }) => {
         </div>
       </div>
 
-      {/* Logout Confirmation Modal */}
-      {showLogoutConfirm && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-6 z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
-            <h3 className="text-xl font-bold mb-3 text-gray-800">تأكيد تسجيل الخروج</h3>
-            <p className="text-gray-600 mb-6">هل أنت متأكد من رغبتك في تسجيل الخروج؟</p>
-            <div className="flex gap-3">
+      {/* Difficulty Modal */}
+      {showDifficultyModal && (
+        <Modal onClose={() => setShowDifficultyModal(false)} title="مستوى الصعوبة">
+          <div className="space-y-3">
+            {difficulties.map((diff) => (
               <button
-                onClick={() => setShowLogoutConfirm(false)}
-                className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition"
+                key={diff.value}
+                onClick={() => handleDifficultyChange(diff.value)}
+                className={`w-full p-4 rounded-xl text-right transition-all ${
+                  user?.difficultyLevel === diff.value
+                    ? 'bg-green-50 border-2 border-green-500'
+                    : 'bg-gray-50 border-2 border-gray-200 hover:border-green-300'
+                }`}
               >
-                إلغاء
+                <div className="flex items-center gap-3">
+                  <div className={`${diff.color} px-3 py-1 rounded-full text-sm font-bold`}>
+                    {diff.label}
+                  </div>
+                  {user?.difficultyLevel === diff.value && (
+                    <div className="mr-auto bg-green-500 text-white w-6 h-6 rounded-full flex items-center justify-center">
+                      ✓
+                    </div>
+                  )}
+                </div>
+                <p className="text-sm text-gray-600 mt-2">{diff.description}</p>
               </button>
+            ))}
+          </div>
+        </Modal>
+      )}
+
+      {/* Reminders Modal */}
+      {showRemindersModal && (
+        <Modal onClose={() => setShowRemindersModal(false)} title="التذكيرات اليومية">
+          <div className="space-y-4">
+            <p className="text-gray-600 text-right">
+              احصل على تذكير يومي لحل الأسئلة وزيادة معرفتك الفقهية
+            </p>
+            <div className="space-y-3">
               <button
-                onClick={handleLogout}
-                className="flex-1 bg-red-600 text-white py-3 rounded-xl font-bold hover:bg-red-700 transition"
+                onClick={toggleReminders}
+                className={`w-full p-4 rounded-xl text-right transition-all ${
+                  user?.dailyReminders
+                    ? 'bg-green-50 border-2 border-green-500'
+                    : 'bg-gray-50 border-2 border-gray-200'
+                }`}
               >
-                تسجيل الخروج
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-gray-800">
+                    {user?.dailyReminders ? 'مفعّل ✓' : 'معطّل'}
+                  </span>
+                  <div className={`w-12 h-6 rounded-full transition-all ${
+                    user?.dailyReminders ? 'bg-green-500' : 'bg-gray-300'
+                  }`}>
+                    <div className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-all ${
+                      user?.dailyReminders ? 'mr-6' : 'mr-0.5'
+                    }`}></div>
+                  </div>
+                </div>
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
+      )}
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <Modal onClose={() => setShowLogoutConfirm(false)} title="تأكيد تسجيل الخروج">
+          <p className="text-gray-600 mb-6 text-right">
+            هل أنت متأكد من رغبتك في تسجيل الخروج؟
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowLogoutConfirm(false)}
+              className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition active:scale-98"
+            >
+              إلغاء
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex-1 bg-red-600 text-white py-3 rounded-xl font-bold hover:bg-red-700 transition active:scale-98"
+            >
+              تسجيل الخروج
+            </button>
+          </div>
+        </Modal>
       )}
 
       <BottomNav currentScreen="profile" navigate={navigate} />
@@ -110,8 +201,11 @@ export const ProfileScreen = ({ navigate }) => {
   );
 };
 
-const SettingItem = ({ icon, label, value }) => (
-  <button className="w-full bg-white rounded-xl p-4 flex items-center gap-4 shadow-lg hover:shadow-xl transition-all">
+const SettingItem = ({ icon, label, value, onClick }) => (
+  <button 
+    onClick={onClick}
+    className="w-full bg-white rounded-xl p-4 flex items-center gap-4 shadow-lg hover:shadow-xl transition-all active:scale-98"
+  >
     <div className="text-green-600 bg-green-50 p-3 rounded-xl">
       {icon}
     </div>
@@ -123,3 +217,21 @@ const SettingItem = ({ icon, label, value }) => (
   </button>
 );
 
+const Modal = ({ children, onClose, title }) => (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-6 z-50">
+    <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-xl font-bold text-gray-800">{title}</h3>
+        <button
+          onClick={onClose}
+          className="text-gray-400 hover:text-gray-600 transition p-1"
+        >
+          <X size={24} />
+        </button>
+      </div>
+      {children}
+    </div>
+  </div>
+);
+
+export default ProfileScreen;

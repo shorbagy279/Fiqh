@@ -1,4 +1,11 @@
-export const BookmarksScreen = ({ navigate }) => {
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import api from '../../services/api';
+import { Bookmark, X } from 'lucide-react';
+import BottomNav from '../../components/shared/BottomNav';
+import LoadingSpinner from '../../components/shared/LoadingSpinner';
+
+const BookmarksScreen = ({ navigate }) => {
   const { token } = useAuth();
   const [bookmarks, setBookmarks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,7 +52,7 @@ export const BookmarksScreen = ({ navigate }) => {
             <h3 className="text-xl font-bold text-gray-700 mb-2">لا توجد أسئلة محفوظة</h3>
             <p className="text-gray-500 mb-6">احفظ الأسئلة الصعبة لمراجعتها لاحقاً</p>
             <button
-              onClick={() => navigate('quiz')}
+              onClick={() => navigate('quiz', {})}
               className="bg-green-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-green-700 transition"
             >
               ابدأ اختباراً جديداً
@@ -83,3 +90,4 @@ export const BookmarksScreen = ({ navigate }) => {
   );
 };
 
+export default BookmarksScreen;

@@ -7,7 +7,7 @@ import StatCard from '../../components/cards/StatCard';
 import CategoryProgress from '../../components/cards/CategoryProgress';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 
-export const StatsScreen = ({ navigate }) => {
+const StatsScreen = ({ navigate }) => {
   const { user, token } = useAuth();
   const [stats, setStats] = useState(null);
   const [categories, setCategories] = useState([]);
@@ -168,3 +168,5 @@ const AchievementItem = ({ icon, title, current, target }) => {
     </div>
   );
 };
+
+export default StatsScreen;

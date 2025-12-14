@@ -1,4 +1,10 @@
-export const QuizScreen = ({ navigate, data }) => {
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import api from '../../services/api';
+import { BookOpen, Trophy, ArrowRight, X } from 'lucide-react';
+import LoadingSpinner from '../../components/shared/LoadingSpinner';
+
+const QuizScreen = ({ navigate, data }) => {
   const { token } = useAuth();
   const [questions, setQuestions] = useState([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -7,7 +13,6 @@ export const QuizScreen = ({ navigate, data }) => {
   const [score, setScore] = useState(0);
   const [quizAttemptId, setQuizAttemptId] = useState(null);
   const [startTime] = useState(Date.now());
-  const [answerTimes, setAnswerTimes] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,10 +25,15 @@ export const QuizScreen = ({ navigate, data }) => {
         });
         setQuizAttemptId(quizData.quizAttemptId);
         
-        const questionsData = data?.categoryId
-          ? await api.getCategoryQuestions(token, data.categoryId, 10)
-          : await api.getRandomQuestions(token, 10);
+        // Fetch questions (they won't include correct answer initially)
+        let questionsData;
+        if (data?.categoryId) {
+          questionsData = await api.getCategoryQuestions(token, data.categoryId, 10);
+        } else {
+          questionsData = await api.getRandomQuestions(token, 10);
+        }
         
+        // For each question, we'll fetch the full details with answer when user selects an option
         setQuestions(questionsData);
       } catch (error) {
         console.error('Error starting quiz:', error);
@@ -36,15 +46,29 @@ export const QuizScreen = ({ navigate, data }) => {
   }, [token, data]);
 
   const handleAnswer = async (index) => {
+    if (showExplanation) return; // Prevent double-click
+    
     setSelectedAnswer(index);
-    setShowExplanation(true);
     
     const question = questions[currentQuestion];
-    const isCorrect = index === question.correctAnswer;
-    
-    if (isCorrect) setScore(score + 1);
     
     try {
+      // Fetch the full question details including correct answer and explanation
+      const fullQuestion = await api.getQuestionById(token, question.id);
+      
+      // Update the current question in the array with full details
+      const updatedQuestions = [...questions];
+      updatedQuestions[currentQuestion] = fullQuestion;
+      setQuestions(updatedQuestions);
+      
+      // Now show the explanation
+      setShowExplanation(true);
+      
+      // Check if answer is correct
+      const isCorrect = index === fullQuestion.correctAnswer;
+      if (isCorrect) setScore(score + 1);
+      
+      // Submit answer to backend
       await api.submitAnswer(token, {
         questionId: question.id,
         quizAttemptId,
@@ -53,6 +77,8 @@ export const QuizScreen = ({ navigate, data }) => {
       });
     } catch (error) {
       console.error('Error submitting answer:', error);
+      // Still show explanation even if API call fails
+      setShowExplanation(true);
     }
   };
 
@@ -86,33 +112,28 @@ export const QuizScreen = ({ navigate, data }) => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-br from-green-600 to-green-800 text-white p-6 shadow-xl">
-        <div className="flex justify-between items-center mb-4">
-          <button onClick={() => navigate('home')} className="p-2 hover:bg-white/10 rounded-lg transition">
+      <div className="bg-gradient-to-br from-green-600 to-green-800 text-white p-4 shadow-xl">
+        <div className="flex justify-between items-center mb-3">
+          <button onClick={() => navigate('home')} className="p-1 hover:bg-white/10 rounded-lg transition">
             <X size={24} />
           </button>
-          <span className="font-bold text-lg">السؤال {currentQuestion + 1} من {questions.length}</span>
+          <span className="font-bold text-base">السؤال {currentQuestion + 1} من {questions.length}</span>
           <div className="w-10"></div>
         </div>
         
         {/* Progress Bar */}
-        <div className="bg-white/20 rounded-full h-3 overflow-hidden">
+        <div className="bg-white/20 rounded-full h-2 overflow-hidden">
           <div 
-            className="bg-gradient-to-r from-yellow-400 to-yellow-300 h-full rounded-full transition-all duration-500 shadow-lg"
+            className="bg-yellow-400 h-full rounded-full transition-all duration-300"
             style={{width: `${progress}%`}}
           ></div>
         </div>
-        
-        <div className="flex justify-between items-center mt-2 text-sm">
-          <span className="text-green-100">النتيجة: {score}/{questions.length}</span>
-          <span className="text-green-100">{Math.round(progress)}% مكتمل</span>
-        </div>
       </div>
 
-      <div className="p-6">
+      <div className="p-4">
         {/* Question Card */}
-        <div className="bg-white rounded-2xl p-6 shadow-xl mb-6">
-          <div className="flex gap-2 mb-4">
+        <div className="bg-white rounded-2xl p-5 shadow-lg mb-4">
+          <div className="flex gap-2 mb-4 items-center">
             <span className={`px-3 py-1 rounded-full text-xs font-bold ${
               question.difficulty === 'beginner' ? 'bg-green-100 text-green-600' :
               question.difficulty === 'intermediate' ? 'bg-yellow-100 text-yellow-600' :
@@ -128,29 +149,29 @@ export const QuizScreen = ({ navigate, data }) => {
             )}
           </div>
           
-          <h2 className="text-xl font-bold mb-3 text-right leading-relaxed text-gray-800">
+          <h2 className="text-lg font-bold mb-3 text-right leading-relaxed text-gray-900">
             {question.questionAr}
           </h2>
-          <p className="text-sm text-gray-500 text-left mb-6 leading-relaxed">
+          <p className="text-sm text-gray-500 text-left mb-5 leading-relaxed">
             {question.questionEn}
           </p>
 
           {/* Options */}
           <div className="space-y-3">
             {question.optionsAr?.map((option, index) => {
-              let bgColor = 'bg-gray-50 hover:bg-gray-100';
+              let bgColor = 'bg-white hover:bg-gray-50';
               let borderColor = 'border-gray-200';
-              let textColor = 'text-gray-800';
+              let textColor = 'text-gray-900';
               
               if (showExplanation) {
                 if (index === question.correctAnswer) {
                   bgColor = 'bg-green-50';
                   borderColor = 'border-green-500';
-                  textColor = 'text-green-700';
+                  textColor = 'text-green-800';
                 } else if (index === selectedAnswer) {
                   bgColor = 'bg-red-50';
                   borderColor = 'border-red-500';
-                  textColor = 'text-red-700';
+                  textColor = 'text-red-800';
                 }
               }
 
@@ -159,16 +180,16 @@ export const QuizScreen = ({ navigate, data }) => {
                   key={index}
                   onClick={() => !showExplanation && handleAnswer(index)}
                   disabled={showExplanation}
-                  className={`w-full p-4 rounded-xl border-2 ${bgColor} ${borderColor} text-right transition-all relative ${!showExplanation && 'hover:border-green-500 hover:shadow-md'} disabled:cursor-not-allowed`}
+                  className={`w-full p-3.5 rounded-xl border-2 ${bgColor} ${borderColor} text-right transition-all relative ${!showExplanation && 'hover:border-green-400 hover:shadow-sm active:scale-98'} disabled:cursor-not-allowed`}
                 >
-                  <span className={`font-medium ${textColor}`}>{option}</span>
+                  <span className={`font-medium text-sm ${textColor}`}>{option}</span>
                   {showExplanation && index === question.correctAnswer && (
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 bg-green-500 text-white w-8 h-8 rounded-full flex items-center justify-center">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 bg-green-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">
                       ✓
                     </div>
                   )}
                   {showExplanation && index === selectedAnswer && index !== question.correctAnswer && (
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">
                       ✗
                     </div>
                   )}
@@ -180,17 +201,17 @@ export const QuizScreen = ({ navigate, data }) => {
 
         {/* Explanation */}
         {showExplanation && question.explanationAr && (
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-6 mb-6 shadow-lg">
-            <h3 className="font-bold text-blue-900 mb-3 flex items-center gap-2 text-lg">
-              <BookOpen size={22} />
-              الشرح التفصيلي
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-2xl p-5 mb-4 shadow-md">
+            <h3 className="font-bold text-blue-900 mb-2 flex items-center gap-2 text-base">
+              <BookOpen size={18} />
+              الشرح
             </h3>
-            <p className="text-blue-800 mb-4 text-right leading-relaxed">
+            <p className="text-blue-900 mb-3 text-right leading-relaxed text-sm">
               {question.explanationAr}
             </p>
             {question.referenceAr && (
-              <div className="bg-white rounded-xl p-4 shadow-sm">
-                <p className="text-sm text-gray-700 text-right font-medium">
+              <div className="bg-white rounded-xl p-3 shadow-sm">
+                <p className="text-xs text-gray-700 text-right font-medium">
                   📚 المرجع: {question.referenceAr}
                 </p>
               </div>
@@ -202,17 +223,17 @@ export const QuizScreen = ({ navigate, data }) => {
         {showExplanation && (
           <button
             onClick={handleNext}
-            className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 rounded-xl font-bold hover:from-green-700 hover:to-green-800 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-3.5 rounded-xl font-bold hover:from-green-700 hover:to-green-800 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-base"
           >
             {currentQuestion >= questions.length - 1 ? (
               <>
-                <Trophy size={20} />
                 إنهاء الاختبار
+                <Trophy size={18} />
               </>
             ) : (
               <>
                 السؤال التالي
-                <ArrowRight size={20} />
+                <ArrowRight size={18} />
               </>
             )}
           </button>
@@ -221,3 +242,5 @@ export const QuizScreen = ({ navigate, data }) => {
     </div>
   );
 };
+
+export default QuizScreen;

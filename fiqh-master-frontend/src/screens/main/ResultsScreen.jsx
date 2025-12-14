@@ -1,4 +1,7 @@
-export const ResultsScreen = ({ navigate, data }) => {
+import React from 'react';
+import { RefreshCw } from 'lucide-react';
+
+const ResultsScreen = ({ navigate, data }) => {
   const { result, score, total } = data || {};
   const percentage = ((score || 0) / (total || 10)) * 100;
   
@@ -74,5 +77,4 @@ const StatRow = ({ icon, label, value }) => (
   </div>
 );
 
-// Import statements at the top
-import { BookOpen, Trophy, RefreshCw, ArrowRight, X } from 'lucide-react';
+export default ResultsScreen;

@@ -1,4 +1,11 @@
-export const LeaderboardScreen = ({ navigate }) => {
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import api from '../../services/api';
+import { Trophy } from 'lucide-react';
+import BottomNav from '../../components/shared/BottomNav';
+import LoadingSpinner from '../../components/shared/LoadingSpinner';
+
+const LeaderboardScreen = ({ navigate }) => {
   const { token } = useAuth();
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -108,6 +115,4 @@ const LeaderboardItem = ({ rank, entry, activeTab }) => {
   );
 };
 
-// Import statements
-import { LogOut, ChevronRight, Bookmark, X } from 'lucide-react';
-import { useState } from 'react';
+export default LeaderboardScreen;
