@@ -1,4 +1,3 @@
-// src/components/shared/BottomNav.jsx
 import React from 'react';
 import { Home, BookOpen, BarChart3, User } from 'lucide-react';
 

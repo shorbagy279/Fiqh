@@ -1,25 +1,26 @@
-// src/contexts/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '../services/api';
-import { CONFIG } from '../config/constants';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem(CONFIG.STORAGE_KEY));
+  const [token, setToken] = useState(localStorage.getItem('fiqh_token'));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     if (token) {
       api.getCurrentUser(token)
-        .then(setUser)
-        .catch((err) => {
+        .then(userData => {
+          setUser(userData);
+          setError(null);
+        })
+        .catch(err => {
           console.error('Auth error:', err);
-          localStorage.removeItem(CONFIG.STORAGE_KEY);
+          localStorage.removeItem('fiqh_token');
           setToken(null);
-          setError('Session expired. Please login again.');
+          setError('انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى.');
         })
         .finally(() => setLoading(false));
     } else {
@@ -28,34 +29,67 @@ export const AuthProvider = ({ children }) => {
   }, [token]);
 
   const login = async (email, password) => {
-    const response = await api.login({ email, password });
-    localStorage.setItem(CONFIG.STORAGE_KEY, response.token);
-    setToken(response.token);
-    setUser(response.user);
+    try {
+      const response = await api.login({ email, password });
+      localStorage.setItem('fiqh_token', response.token);
+      setToken(response.token);
+      setUser(response.user);
+      setError(null);
+      return response;
+    } catch (err) {
+      setError(err.message || 'فشل تسجيل الدخول');
+      throw err;
+    }
   };
 
   const register = async (data) => {
-    const response = await api.register(data);
-    localStorage.setItem(CONFIG.STORAGE_KEY, response.token);
-    setToken(response.token);
-    setUser(response.user);
+    try {
+      const response = await api.register(data);
+      localStorage.setItem('fiqh_token', response.token);
+      setToken(response.token);
+      setUser(response.user);
+      setError(null);
+      return response;
+    } catch (err) {
+      setError(err.message || 'فشل التسجيل');
+      throw err;
+    }
   };
 
   const logout = () => {
-    localStorage.removeItem(CONFIG.STORAGE_KEY);
+    localStorage.removeItem('fiqh_token');
     setToken(null);
     setUser(null);
+    setError(null);
   };
 
   const refreshUser = async () => {
     if (token) {
-      const updatedUser = await api.getCurrentUser(token);
-      setUser(updatedUser);
+      try {
+        const updatedUser = await api.getCurrentUser(token);
+        setUser(updatedUser);
+      } catch (err) {
+        console.error('Refresh user error:', err);
+      }
     }
   };
 
+  const updateUser = (updates) => {
+    setUser(prev => ({ ...prev, ...updates }));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, error, login, register, logout, refreshUser }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      token, 
+      loading, 
+      error, 
+      login, 
+      register, 
+      logout, 
+      refreshUser,
+      updateUser 
+    }}>
       {children}
     </AuthContext.Provider>
   );
@@ -63,6 +97,8 @@ export const AuthProvider = ({ children }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
   return context;
 };

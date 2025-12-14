@@ -1,4 +1,3 @@
-// src/components/shared/StreakDisplay.jsx
 import React from 'react';
 
 const StreakDisplay = ({ streak = 0 }) => (

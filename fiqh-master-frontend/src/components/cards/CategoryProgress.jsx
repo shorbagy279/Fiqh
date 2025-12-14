@@ -1,4 +1,3 @@
-// src/components/cards/CategoryProgress.jsx
 import React from 'react';
 
 const CategoryProgress = ({ name, icon, progress, color }) => (

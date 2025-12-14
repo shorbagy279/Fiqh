@@ -1,4 +1,3 @@
-// src/components/shared/ErrorAlert.jsx
 import React from 'react';
 import { AlertCircle } from 'lucide-react';
 
