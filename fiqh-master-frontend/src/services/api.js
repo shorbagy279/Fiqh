@@ -1,3 +1,5 @@
+// Complete updated src/services/api.js
+
 const API_BASE = 'http://localhost:8080/api';
 
 class ApiError extends Error {
@@ -11,7 +13,7 @@ class ApiError extends Error {
 
 // Utility functions for local caching
 export const cache = {
-  set(key, data, ttl = 300000) { // 5 minutes default
+  set(key, data, ttl = 300000) {
     const item = {
       data,
       expiry: Date.now() + ttl
@@ -42,7 +44,6 @@ export const cache = {
   }
 };
 
-// Request interceptor for adding common headers
 const createHeaders = (token, additionalHeaders = {}) => {
   const headers = {
     'Content-Type': 'application/json',
@@ -56,7 +57,6 @@ const createHeaders = (token, additionalHeaders = {}) => {
   return headers;
 };
 
-// Retry logic for failed requests
 const retryRequest = async (fn, retries = 3, delay = 1000) => {
   try {
     return await fn();
@@ -110,7 +110,6 @@ const api = {
         throw new ApiError(errorMessage, res.status, errorDetails);
       }
       
-      // Handle empty responses
       const contentType = res.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
         return await res.json();
@@ -126,7 +125,7 @@ const api = {
     }
   },
 
-  // ============ Auth Endpoints ============
+  // Auth
   async register(data) {
     return api.request('/auth/register', { 
       method: 'POST', 
@@ -145,7 +144,7 @@ const api = {
     return api.request('/auth/me', { token });
   },
 
-  // ============ Category Endpoints ============
+  // Categories
   async getCategories(token) {
     return retryRequest(() => api.request('/categories', { token }));
   },
@@ -154,7 +153,7 @@ const api = {
     return api.request(`/categories/${categoryId}`, { token });
   },
 
-  // ============ Question Endpoints ============
+  // Questions
   async getRandomQuestions(token, limit = 10) {
     return api.request(`/questions/random?limit=${limit}`, { token });
   },
@@ -167,7 +166,7 @@ const api = {
     return api.request(`/questions/${questionId}`, { token });
   },
 
-  // ============ Quiz Endpoints ============
+  // Quiz
   async startQuiz(token, data) {
     return api.request('/quiz/start', { 
       method: 'POST', 
@@ -199,7 +198,7 @@ const api = {
     return api.request(`/quiz/${quizAttemptId}`, { token });
   },
 
-  // ============ User Endpoints ============
+  // User
   async getUserProfile(token) {
     return api.request('/user/profile', { token });
   },
@@ -214,6 +213,11 @@ const api = {
 
   async getUserStats(token) {
     return api.request('/user/stats', { token });
+  },
+
+  // NEW: Category Progress
+  async getCategoryProgress(token) {
+    return api.request('/user/category-progress', { token });
   },
   
   async getBookmarks(token) {
@@ -275,7 +279,7 @@ const api = {
     });
   },
 
-  // ============ Leaderboard Endpoints ============
+  // Leaderboard
   async getLeaderboard(token, limit = 50) {
     return api.request(`/leaderboard?limit=${limit}`, { token });
   },

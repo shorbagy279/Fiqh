@@ -58,6 +58,11 @@ public class UserController {
         Long userId = (Long) authentication.getPrincipal();
         return ResponseEntity.ok(bookmarkService.getUserBookmarks(userId));
     }
+    @GetMapping("/category-progress")
+public ResponseEntity<Map<String, Object>> getCategoryProgress(Authentication authentication) {
+    Long userId = (Long) authentication.getPrincipal();
+    return ResponseEntity.ok(statsService.getCategoryProgressForUser(userId));
+}
     
     @PostMapping("/bookmarks/{questionId}")
     public ResponseEntity<Map<String, String>> addBookmark(

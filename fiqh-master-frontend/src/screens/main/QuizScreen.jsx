@@ -504,46 +504,68 @@ const QuizScreen = ({ navigate, data }) => {
           </div>
         )}
 
-        <div className="flex gap-3 mb-4">
-          {currentQuestion > 0 && showExplanation && !isReviewMode && (
-            <button
-              onClick={handlePrevious}
-              className="flex-1 bg-gray-200 text-gray-700 py-3.5 rounded-xl font-bold hover:bg-gray-300 transition-all shadow-md flex items-center justify-center gap-2 text-base"
-            >
-              <ArrowLeft size={18} />
-              السابق
-            </button>
-          )}
-          
-          {isReviewMode && (
-            <button
-              onClick={returnToCurrentQuestion}
-              className="flex-1 bg-purple-600 text-white py-3.5 rounded-xl font-bold hover:bg-purple-700 transition-all shadow-lg flex items-center justify-center gap-2 text-base"
-            >
-              العودة للسؤال الحالي
-              <ArrowRight size={18} />
-            </button>
-          )}
-          
-          {showExplanation && !isReviewMode && (
-            <button
-              onClick={handleNext}
-              className="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white py-3.5 rounded-xl font-bold hover:from-green-700 hover:to-green-800 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-base"
-            >
-              {isLastQuestion ? (
-                <>
-                  إنهاء الاختبار
-                  <Trophy size={18} />
-                </>
-              ) : (
-                <>
-                  التالي
-                  <ArrowRight size={18} />
-                </>
-              )}
-            </button>
-          )}
-        </div>
+       <div className="flex gap-3 mb-4">
+  {currentQuestion > 0 && showExplanation && !isReviewMode && (
+    <button
+      onClick={handlePrevious}
+      className="flex-1 bg-gray-200 text-gray-700 py-3.5 rounded-xl font-bold hover:bg-gray-300 transition-all shadow-md flex items-center justify-center gap-2 text-base"
+    >
+      <ArrowLeft size={18} />
+      السابق
+    </button>
+  )}
+  
+  {isReviewMode && (
+    <button
+      onClick={returnToCurrentQuestion}
+      className="flex-1 bg-purple-600 text-white py-3.5 rounded-xl font-bold hover:bg-purple-700 transition-all shadow-lg flex items-center justify-center gap-2 text-base"
+    >
+      العودة للسؤال الحالي
+      <ArrowRight size={18} />
+    </button>
+  )}
+  
+  {showExplanation && !isReviewMode && (
+    <button
+      onClick={handleNext}
+      className="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white py-3.5 rounded-xl font-bold hover:from-green-700 hover:to-green-800 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-base"
+    >
+      {isLastQuestion ? (
+        <>
+          إنهاء الاختبار
+          <Trophy size={18} />
+        </>
+      ) : (
+        <>
+          التالي
+          <ArrowRight size={18} />
+        </>
+      )}
+    </button>
+  )}
+</div>
+
+{/* Add Force Finish Button - Show if user has answered some questions */}
+{Object.keys(questionAnswers).length > 0 && !showExplanation && (
+  <button
+    onClick={handleForceExit}
+    className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-3.5 rounded-xl font-bold hover:from-orange-600 hover:to-red-600 transition-all shadow-lg flex items-center justify-center gap-2 text-base mb-4"
+  >
+    <Trophy size={18} />
+    إنهاء الاختبار الآن ({Object.keys(questionAnswers).length} مُجاب)
+  </button>
+)}
+
+{/* Show finish button if all questions answered */}
+{Object.keys(questionAnswers).length === questions.length && isReviewMode && (
+  <button
+    onClick={handleForceExit}
+    className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 rounded-xl font-bold hover:from-green-700 hover:to-green-800 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-lg mb-4 animate-pulse-slow"
+  >
+    <Trophy size={24} />
+    انتهيت! اضغط لرؤية النتيجة
+  </button>
+)}
 
         {questions.length > 1 && (
           <div className="bg-white rounded-xl p-4 shadow-md">

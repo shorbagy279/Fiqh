@@ -16,6 +16,7 @@ public class StatsService {
     private final QuizAttemptRepository quizAttemptRepository;
     private final UserAnswerRepository userAnswerRepository;
     private final CategoryRepository categoryRepository;
+    private final QuestionRepository questionRepository;
     
     public UserStatsDTO getUserStats(Long userId) {
         User user = userRepository.findById(userId)
@@ -217,7 +218,82 @@ public class StatsService {
         
         return categoryProgress;
     }
+
+
+
+   
+public Map<String, Object> getCategoryProgressForUser(Long userId) {
+    Map<String, Object> result = new HashMap<>();
+    List<Category> categories = categoryRepository.findAll();
+    List<QuizAttempt> userAttempts = quizAttemptRepository
+        .findByUserIdAndCompletedOrderByStartedAtDesc(userId, true);
     
+    // Calculate progress for each category
+    List<Map<String, Object>> categoryProgress = new ArrayList<>();
+    
+    for (Category category : categories) {
+        // Get total questions in this category
+        Long totalQuestions = questionRepository.countByCategoryId(category.getId());
+        
+        if (totalQuestions == 0) continue;
+        
+        // Get user's attempts for this category
+        List<QuizAttempt> categoryAttempts = userAttempts.stream()
+            .filter(a -> a.getCategory() != null && 
+                        a.getCategory().getId().equals(category.getId()))
+            .collect(Collectors.toList());
+        
+        // Calculate unique questions answered
+        Set<Long> answeredQuestionIds = new HashSet<>();
+        int totalCorrect = 0;
+        int totalAnswered = 0;
+        
+        for (QuizAttempt attempt : categoryAttempts) {
+            List<UserAnswer> answers = userAnswerRepository
+                .findByQuizAttemptId(attempt.getId());
+            
+            for (UserAnswer answer : answers) {
+                answeredQuestionIds.add(answer.getQuestion().getId());
+                totalAnswered++;
+                if (answer.getIsCorrect()) {
+                    totalCorrect++;
+                }
+            }
+        }
+        
+        // Calculate progress percentage
+        double progress = (answeredQuestionIds.size() * 100.0) / totalQuestions;
+        double accuracy = totalAnswered > 0 
+            ? (totalCorrect * 100.0) / totalAnswered 
+            : 0.0;
+        
+        Map<String, Object> categoryData = new HashMap<>();
+        categoryData.put("categoryId", category.getId());
+        categoryData.put("categoryName", category.getNameAr());
+        categoryData.put("icon", category.getIcon());
+        categoryData.put("color", category.getColor());
+        categoryData.put("progress", Math.min(Math.round(progress), 100));
+        categoryData.put("accuracy", Math.round(accuracy));
+        categoryData.put("questionsAnswered", answeredQuestionIds.size());
+        categoryData.put("totalQuestions", totalQuestions.intValue());
+        categoryData.put("totalCorrect", totalCorrect);
+        categoryData.put("quizzesTaken", categoryAttempts.size());
+        
+        categoryProgress.add(categoryData);
+    }
+    
+    // Sort by progress descending
+    categoryProgress.sort((a, b) -> 
+        ((Integer) b.get("progress")).compareTo((Integer) a.get("progress"))
+    );
+    
+    result.put("categories", categoryProgress);
+    result.put("totalCategories", categories.size());
+    
+    return result;
+}
+    
+
     public List<Map<String, Object>> getUserAchievements(Long userId) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("المستخدم غير موجود"));
@@ -353,4 +429,6 @@ public class StatsService {
         
         return secondHalfAvg - firstHalfAvg;
     }
+
+    
 }
