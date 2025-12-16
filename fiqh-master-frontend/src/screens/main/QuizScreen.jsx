@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useQuiz } from '../../hooks/useCustomHooks';
-import { BookOpen, Trophy, ArrowRight, ArrowLeft, X, Clock, Bookmark, BookmarkCheck, Eye } from 'lucide-react';
+import { BookOpen, Trophy, ArrowRight, ArrowLeft, X, Clock, Bookmark, BookmarkCheck, Eye, AlertCircle } from 'lucide-react';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import api from '../../services/api';
 
@@ -9,7 +9,7 @@ const QuizScreen = ({ navigate, data }) => {
   const { token } = useAuth();
   const {
     quiz,
-    questions,
+    questions: quizQuestions,
     currentQuestion,
     answers,
     loading: quizLoading,
@@ -23,6 +23,7 @@ const QuizScreen = ({ navigate, data }) => {
     setCurrentQuestion
   } = useQuiz();
 
+  const [questions, setQuestions] = useState([]);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [showExplanation, setShowExplanation] = useState(false);
   const [fullQuestion, setFullQuestion] = useState(null);
@@ -34,19 +35,85 @@ const QuizScreen = ({ navigate, data }) => {
   const [isReviewMode, setIsReviewMode] = useState(false);
   const [questionAnswers, setQuestionAnswers] = useState({});
   const [highestAnsweredIndex, setHighestAnsweredIndex] = useState(-1);
+  
+  const [quizTimer, setQuizTimer] = useState(null);
+  const [timerWarning, setTimerWarning] = useState(false);
+  const timerRef = useRef(null);
 
-  // Timer effect
   useEffect(() => {
+    if (data?.timerEnabled && data?.timerMinutes) {
+      const totalSeconds = data.timerMinutes * 60;
+      setQuizTimer(totalSeconds);
+    }
+  }, [data?.timerEnabled, data?.timerMinutes]);
+
+  useEffect(() => {
+    if (quizTimer === null || quizTimer <= 0) return;
+
+    const timer = setInterval(() => {
+      setQuizTimer(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          handleTimeUp();
+          return 0;
+        }
+        
+        if (prev === 60 && !timerWarning) {
+          setTimerWarning(true);
+        }
+        
+        return prev - 1;
+      });
+    }, 1000);
+
+    timerRef.current = timer;
+    return () => clearInterval(timer);
+  }, [quizTimer !== null]);
+
+  const handleTimeUp = async () => {
+    alert('انتهى الوقت! سيتم إنهاء الاختبار.');
+    await handleForceExit();
+  };
+
+  const formatQuizTimer = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  useEffect(() => {
+    if (quizTimer !== null) return;
+    
     const timer = setInterval(() => {
       setElapsedTime(prev => prev + 1);
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [quizTimer]);
 
-  // Initialize quiz
+  useEffect(() => {
+    if (data?.customQuestions && data.customQuestions.length > 0) {
+      setQuestions(data.customQuestions);
+    } else if (quizQuestions && quizQuestions.length > 0) {
+      setQuestions(quizQuestions);
+    }
+  }, [data?.customQuestions, quizQuestions]);
+
   useEffect(() => {
     const initQuiz = async () => {
+      if (data?.customQuestions && data.customQuestions.length > 0) {
+        try {
+          await startQuiz({
+            categoryId: null,
+            quizType: 'custom',
+            questionCount: data.customQuestions.length
+          });
+        } catch (error) {
+          console.error('Error starting custom quiz:', error);
+        }
+        return;
+      }
+
       try {
         await startQuiz({
           categoryId: data?.categoryId || null,
@@ -59,12 +126,11 @@ const QuizScreen = ({ navigate, data }) => {
       }
     };
 
-    if (token && !quiz) {
+    if (token && !quiz && !data?.customQuestions) {
       initQuiz();
     }
   }, [token, quiz, data, startQuiz, navigate]);
 
-  // Update highest answered index
   useEffect(() => {
     const answeredIndices = questions
       .map((q, idx) => questionAnswers[q.id] ? idx : -1)
@@ -75,21 +141,17 @@ const QuizScreen = ({ navigate, data }) => {
     }
   }, [questionAnswers, questions]);
 
-  // Reset state when question changes
   useEffect(() => {
     const question = questions[currentQuestion];
     
-    // Check if this question was already answered
     const wasAnswered = questionAnswers[question?.id];
     
     if (wasAnswered) {
-      // Review mode - show the previous answer
       setIsReviewMode(true);
       setSelectedAnswer(wasAnswered.selectedAnswer);
       setFullQuestion(wasAnswered.fullQuestion);
       setShowExplanation(true);
     } else {
-      // Normal mode - new question
       setIsReviewMode(false);
       setSelectedAnswer(null);
       setShowExplanation(false);
@@ -97,7 +159,6 @@ const QuizScreen = ({ navigate, data }) => {
       setQuestionStartTime(Date.now());
     }
     
-    // Check if current question is bookmarked
     if (question) {
       setBookmarked(question.isBookmarked || false);
     }
@@ -113,15 +174,14 @@ const QuizScreen = ({ navigate, data }) => {
     const timeTaken = Math.floor((Date.now() - questionStartTime) / 1000);
     
     try {
-      // Submit answer to backend
-      await submitAnswer(question.id, index, timeTaken);
+      if (quiz) {
+        await submitAnswer(question.id, index, timeTaken);
+      }
       
-      // Fetch full question details with answer and explanation
       const fullQuestionData = await api.getQuestionById(token, question.id);
       setFullQuestion(fullQuestionData);
       setShowExplanation(true);
       
-      // Store this question's answer for later review
       setQuestionAnswers(prev => ({
         ...prev,
         [question.id]: {
@@ -131,7 +191,6 @@ const QuizScreen = ({ navigate, data }) => {
         }
       }));
       
-      // Update score
       if (index === fullQuestionData.correctAnswer) {
         setScore(prev => prev + 1);
       }
@@ -144,8 +203,11 @@ const QuizScreen = ({ navigate, data }) => {
 
   const handleNext = async () => {
     if (isLastQuestion) {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
       try {
-        const result = await completeQuiz();
+        const result = quiz ? await completeQuiz() : null;
         navigate('results', { result, score, total: questions.length });
       } catch (error) {
         console.error('Error completing quiz:', error);
@@ -165,22 +227,18 @@ const QuizScreen = ({ navigate, data }) => {
     const targetQuestion = questions[index];
     const wasAnswered = questionAnswers[targetQuestion?.id];
     
-    // Allow navigation to ALL answered questions (review mode)
-    // Cannot navigate to current question or unanswered questions
     if (wasAnswered && index !== currentQuestion) {
       setCurrentQuestion(index);
     }
   };
 
   const returnToCurrentQuestion = () => {
-    // Find the first unanswered question
     for (let i = 0; i < questions.length; i++) {
       if (!questionAnswers[questions[i].id]) {
         setCurrentQuestion(i);
         return;
       }
     }
-    // If all answered, go to last question
     setCurrentQuestion(questions.length - 1);
   };
 
@@ -199,9 +257,54 @@ const QuizScreen = ({ navigate, data }) => {
     }
   };
 
+  const handleForceExit = async () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+
+    // Calculate score from answered questions
+    const answeredCount = Object.keys(questionAnswers).length;
+    const correctCount = Object.values(questionAnswers).filter(a => a.isCorrect).length;
+    
+    try {
+      // Complete the quiz with current score
+      if (quiz) {
+        const result = await completeQuiz();
+        navigate('results', { 
+          result, 
+          score: correctCount, 
+          total: questions.length,
+          answeredCount 
+        });
+      } else {
+        navigate('results', { 
+          score: correctCount, 
+          total: questions.length,
+          answeredCount 
+        });
+      }
+    } catch (error) {
+      console.error('Error completing quiz:', error);
+      // Even if API fails, show results
+      navigate('results', { 
+        score: correctCount, 
+        total: questions.length,
+        answeredCount 
+      });
+    }
+  };
+
   const handleExit = () => {
-    if (window.confirm('هل أنت متأكد من الخروج؟ ستفقد تقدمك الحالي.')) {
-      navigate('home');
+    const answeredCount = Object.keys(questionAnswers).length;
+    const unansweredCount = questions.length - answeredCount;
+    
+    let message = 'هل أنت متأكد من إنهاء الاختبار؟\n\n';
+    message += `الأسئلة المجاب عليها: ${answeredCount}\n`;
+    message += `الأسئلة غير المجابة: ${unansweredCount}\n\n`;
+    message += 'ستحسب الأسئلة غير المجابة كإجابات خاطئة.';
+    
+    if (window.confirm(message)) {
+      handleForceExit();
     }
   };
 
@@ -211,7 +314,7 @@ const QuizScreen = ({ navigate, data }) => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  if (quizLoading || !questions.length) {
+  if ((quizLoading && !data?.customQuestions) || questions.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <LoadingSpinner size="lg" message="جاري تحميل الأسئلة..." />
@@ -235,10 +338,19 @@ const QuizScreen = ({ navigate, data }) => {
           </button>
           
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full">
-              <Clock size={16} />
-              <span className="font-bold text-sm">{formatTime(elapsedTime)}</span>
-            </div>
+            {quizTimer !== null ? (
+              <div className={`flex items-center gap-2 px-3 py-1 rounded-full ${
+                timerWarning ? 'bg-red-500 animate-pulse' : 'bg-white/10'
+              }`}>
+                <Clock size={16} />
+                <span className="font-bold text-sm">{formatQuizTimer(quizTimer)}</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full">
+                <Clock size={16} />
+                <span className="font-bold text-sm">{formatTime(elapsedTime)}</span>
+              </div>
+            )}
             <span className="font-bold text-base">
               {currentQuestion + 1} / {questions.length}
             </span>
@@ -252,7 +364,6 @@ const QuizScreen = ({ navigate, data }) => {
           </button>
         </div>
         
-        {/* Progress Bar */}
         <div className="bg-white/20 rounded-full h-2 overflow-hidden">
           <div 
             className="bg-yellow-400 h-full rounded-full transition-all duration-300"
@@ -260,7 +371,13 @@ const QuizScreen = ({ navigate, data }) => {
           ></div>
         </div>
 
-        {/* Score and Review Mode indicator */}
+        {timerWarning && quizTimer > 0 && (
+          <div className="mt-2 bg-red-500/20 border border-red-300 rounded-lg p-2 flex items-center gap-2 animate-pulse">
+            <AlertCircle size={16} />
+            <span className="text-sm font-bold">تبقى أقل من دقيقة!</span>
+          </div>
+        )}
+
         <div className="mt-2 text-center">
           {isReviewMode ? (
             <div className="flex items-center justify-center gap-2 bg-purple-500/30 px-3 py-1 rounded-full">
@@ -276,7 +393,6 @@ const QuizScreen = ({ navigate, data }) => {
       </div>
 
       <div className="p-4">
-        {/* Question Card */}
         <div className={`bg-white rounded-2xl p-5 shadow-lg mb-4 ${isReviewMode ? 'border-2 border-purple-300' : ''}`}>
           {isReviewMode && (
             <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4 flex items-center gap-2">
@@ -314,7 +430,6 @@ const QuizScreen = ({ navigate, data }) => {
             </p>
           )}
 
-          {/* Options */}
           <div className="space-y-3">
             {displayQuestion.optionsAr?.map((option, index) => {
               let bgColor = 'bg-white hover:bg-gray-50';
@@ -365,7 +480,6 @@ const QuizScreen = ({ navigate, data }) => {
           </div>
         </div>
 
-        {/* Explanation */}
         {showExplanation && fullQuestion?.explanationAr && (
           <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-2xl p-5 mb-4 shadow-md">
             <h3 className="font-bold text-blue-900 mb-2 flex items-center gap-2 text-base">
@@ -390,7 +504,6 @@ const QuizScreen = ({ navigate, data }) => {
           </div>
         )}
 
-        {/* Navigation Buttons */}
         <div className="flex gap-3 mb-4">
           {currentQuestion > 0 && showExplanation && !isReviewMode && (
             <button
@@ -432,7 +545,6 @@ const QuizScreen = ({ navigate, data }) => {
           )}
         </div>
 
-        {/* Question Navigator */}
         {questions.length > 1 && (
           <div className="bg-white rounded-xl p-4 shadow-md">
             <h3 className="text-sm font-bold text-gray-700 mb-2 text-center">
@@ -480,7 +592,6 @@ const QuizScreen = ({ navigate, data }) => {
               })}
             </div>
             
-            {/* Legend */}
             <div className="mt-4 flex flex-wrap gap-3 justify-center text-xs">
               <div className="flex items-center gap-1">
                 <div className="w-4 h-4 bg-green-600 rounded"></div>

@@ -11,6 +11,7 @@ import RegisterScreen from '../screens/auth/RegisterScreen';
 import HomeScreen from '../screens/main/HomeScreen';
 import CategoriesScreen from '../screens/main/CategoriesScreen';
 import QuizScreen from '../screens/main/QuizScreen';
+import CustomQuizScreen from '../screens/main/CustomQuizScreen';
 import ResultsScreen from '../screens/main/ResultsScreen';
 import StatsScreen from '../screens/main/StatsScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
@@ -52,6 +53,7 @@ const AppRoutes = () => {
     home: <HomeScreen navigate={navigate} />,
     categories: <CategoriesScreen navigate={navigate} />,
     quiz: <QuizScreen navigate={navigate} data={screenData} />,
+    customQuiz: <CustomQuizScreen navigate={navigate} />,
     results: <ResultsScreen navigate={navigate} data={screenData} />,
     stats: <StatsScreen navigate={navigate} />,
     profile: <ProfileScreen navigate={navigate} />,
