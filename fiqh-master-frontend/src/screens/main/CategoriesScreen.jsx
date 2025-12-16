@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
-import { X } from 'lucide-react';
 import BottomNav from '../../components/shared/BottomNav';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
+import QuizOptionsModal from '../../components/modals/QuizOptionsModal';
 
 const CategoriesScreen = ({ navigate }) => {
   const { token } = useAuth();
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showQuizOptions, setShowQuizOptions] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(null);
 
   useEffect(() => {
     if (token) {
@@ -18,6 +20,19 @@ const CategoriesScreen = ({ navigate }) => {
         .finally(() => setLoading(false));
     }
   }, [token]);
+
+  const handleCategoryClick = (category) => {
+    setSelectedCategory(category);
+    setShowQuizOptions(true);
+  };
+
+  const handleStartQuiz = (options) => {
+    setShowQuizOptions(false);
+    navigate('quiz', {
+      ...options,
+      categoryId: selectedCategory.id
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 pb-24">
@@ -36,7 +51,7 @@ const CategoriesScreen = ({ navigate }) => {
             {categories.map(cat => (
               <button
                 key={cat.id}
-                onClick={() => navigate('quiz', { type: 'category', categoryId: cat.id })}
+                onClick={() => handleCategoryClick(cat)}
                 className="bg-white rounded-2xl p-5 shadow-md hover:shadow-xl transform hover:scale-105 transition-all active:scale-95"
               >
                 <div className={`${cat.color || 'bg-green-500'} w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mb-3 mx-auto shadow-md`}>
@@ -52,6 +67,16 @@ const CategoriesScreen = ({ navigate }) => {
           </div>
         )}
       </div>
+
+      {/* Quiz Options Modal */}
+      {showQuizOptions && selectedCategory && (
+        <QuizOptionsModal
+          onClose={() => setShowQuizOptions(false)}
+          onStart={handleStartQuiz}
+          categories={categories}
+          type="category"
+        />
+      )}
 
       <BottomNav currentScreen="categories" navigate={navigate} />
     </div>

@@ -6,11 +6,14 @@ import BottomNav from '../../components/shared/BottomNav';
 import StreakDisplay from '../../components/shared/StreakDisplay';
 import QuickModeCard from '../../components/cards/QuickModeCard';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
+import QuizOptionsModal from '../../components/modals/QuizOptionsModal';
 
 const HomeScreen = ({ navigate }) => {
   const { user, token } = useAuth();
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showQuizOptions, setShowQuizOptions] = useState(false);
+  const [selectedQuizType, setSelectedQuizType] = useState(null);
 
   useEffect(() => {
     if (token) {
@@ -26,6 +29,16 @@ const HomeScreen = ({ navigate }) => {
     if (hour < 12) return 'صباح الخير';
     if (hour < 18) return 'مساء الخير';
     return 'مساء الخير';
+  };
+
+  const openQuizOptions = (type) => {
+    setSelectedQuizType(type);
+    setShowQuizOptions(true);
+  };
+
+  const handleStartQuiz = (options) => {
+    setShowQuizOptions(false);
+    navigate('quiz', options);
   };
 
   return (
@@ -58,7 +71,7 @@ const HomeScreen = ({ navigate }) => {
               </div>
               <p className="text-yellow-100 text-sm flex items-center gap-2">
                 <Zap size={16} />
-                10 أسئلة • 5 دقائق • احصل على نقاط مضاعفة
+                احصل على نقاط مضاعفة
               </p>
             </div>
             <div className="bg-white/20 backdrop-blur-lg p-2 rounded-xl">
@@ -66,7 +79,7 @@ const HomeScreen = ({ navigate }) => {
             </div>
           </div>
           <button 
-            onClick={() => navigate('quiz', { type: 'daily', categoryId: null })}
+            onClick={() => openQuizOptions('daily')}
             className="bg-white text-orange-600 w-full py-3.5 rounded-xl font-bold hover:bg-orange-50 transition-all shadow-lg flex items-center justify-center gap-2"
           >
             <Target size={20} />
@@ -84,28 +97,35 @@ const HomeScreen = ({ navigate }) => {
           <div className="space-y-3">
             <QuickModeCard
               title="اختبار عشوائي"
-              description="10 أسئلة متنوعة من جميع الأقسام"
+              description="أسئلة متنوعة من جميع الأقسام"
               icon="🎲"
               color="bg-gradient-to-br from-blue-500 to-blue-600"
-              onClick={() => navigate('quiz', { type: 'random', categoryId: null })}
+              onClick={() => openQuizOptions('random')}
             />
             <QuickModeCard
               title="اختر قسماً محدداً"
-              description="تدرب على موضوع معين تحتاج لتحسينه"
+              description="تدرب على موضوع معين"
               icon="📚"
               color="bg-gradient-to-br from-purple-500 to-purple-600"
               onClick={() => navigate('categories')}
             />
             <QuickModeCard
+              title="اختبار مخصص"
+              description="اختر الأقسام والأسئلة حسب رغبتك"
+              icon="⚙️"
+              color="bg-gradient-to-br from-indigo-500 to-indigo-600"
+              onClick={() => openQuizOptions('custom')}
+            />
+            <QuickModeCard
               title="الأسئلة المحفوظة"
-              description="راجع الأسئلة الصعبة التي حفظتها"
+              description="راجع الأسئلة الصعبة"
               icon="⭐"
               color="bg-gradient-to-br from-pink-500 to-pink-600"
               onClick={() => navigate('bookmarks')}
             />
             <QuickModeCard
               title="لوحة المتصدرين"
-              description="تنافس مع المستخدمين الآخرين"
+              description="تنافس مع المستخدمين"
               icon="🏆"
               color="bg-gradient-to-br from-yellow-500 to-orange-500"
               onClick={() => navigate('leaderboard')}
@@ -147,6 +167,16 @@ const HomeScreen = ({ navigate }) => {
           </div>
         )}
       </div>
+
+      {/* Quiz Options Modal */}
+      {showQuizOptions && (
+        <QuizOptionsModal
+          onClose={() => setShowQuizOptions(false)}
+          onStart={handleStartQuiz}
+          categories={categories}
+          type={selectedQuizType}
+        />
+      )}
 
       <BottomNav currentScreen="home" navigate={navigate} />
     </div>
