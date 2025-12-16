@@ -20,14 +20,14 @@ public class BookmarkService {
     @Transactional
     public void addBookmark(Long userId, Long questionId, String notes) {
         if (bookmarkRepository.existsByUserIdAndQuestionId(userId, questionId)) {
-            throw new RuntimeException("Question already bookmarked");
+            throw new RuntimeException("السؤال محفوظ بالفعل");
         }
         
         User user = userRepository.findById(userId)
-            .orElseThrow(() -> new RuntimeException("User not found"));
+            .orElseThrow(() -> new RuntimeException("المستخدم غير موجود"));
         
         Question question = questionRepository.findById(questionId)
-            .orElseThrow(() -> new RuntimeException("Question not found"));
+            .orElseThrow(() -> new RuntimeException("السؤال غير موجود"));
         
         Bookmark bookmark = new Bookmark();
         bookmark.setUser(user);
@@ -40,6 +40,15 @@ public class BookmarkService {
     @Transactional
     public void removeBookmark(Long userId, Long questionId) {
         bookmarkRepository.deleteByUserIdAndQuestionId(userId, questionId);
+    }
+    
+    @Transactional
+    public void updateBookmarkNotes(Long userId, Long questionId, String notes) {
+        Bookmark bookmark = bookmarkRepository.findByUserIdAndQuestionId(userId, questionId)
+            .orElseThrow(() -> new RuntimeException("الإشارة المرجعية غير موجودة"));
+        
+        bookmark.setNotes(notes);
+        bookmarkRepository.save(bookmark);
     }
     
     public List<QuestionDTO> getUserBookmarks(Long userId) {

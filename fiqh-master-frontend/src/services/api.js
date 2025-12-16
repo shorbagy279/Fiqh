@@ -9,19 +9,76 @@ class ApiError extends Error {
   }
 }
 
+// Utility functions for local caching
+export const cache = {
+  set(key, data, ttl = 300000) { // 5 minutes default
+    const item = {
+      data,
+      expiry: Date.now() + ttl
+    };
+    localStorage.setItem(`cache_${key}`, JSON.stringify(item));
+  },
+
+  get(key) {
+    const item = localStorage.getItem(`cache_${key}`);
+    if (!item) return null;
+
+    try {
+      const { data, expiry } = JSON.parse(item);
+      if (Date.now() > expiry) {
+        localStorage.removeItem(`cache_${key}`);
+        return null;
+      }
+      return data;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  clear() {
+    Object.keys(localStorage)
+      .filter(key => key.startsWith('cache_'))
+      .forEach(key => localStorage.removeItem(key));
+  }
+};
+
+// Request interceptor for adding common headers
+const createHeaders = (token, additionalHeaders = {}) => {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...additionalHeaders
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return headers;
+};
+
+// Retry logic for failed requests
+const retryRequest = async (fn, retries = 3, delay = 1000) => {
+  try {
+    return await fn();
+  } catch (error) {
+    if (retries === 0 || error.status === 401 || error.status === 403) {
+      throw error;
+    }
+    await new Promise(resolve => setTimeout(resolve, delay));
+    return retryRequest(fn, retries - 1, delay * 2);
+  }
+};
+
 const api = {
   async request(endpoint, options = {}) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
       
       const res = await fetch(`${API_BASE}${endpoint}`, {
         ...options,
         signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers
-        }
+        headers: createHeaders(options.token, options.headers)
       });
       
       clearTimeout(timeoutId);
@@ -38,11 +95,10 @@ const api = {
           errorMessage = `خطأ ${res.status}: ${res.statusText}`;
         }
         
-        // Handle specific status codes
         if (res.status === 401) {
           errorMessage = 'انتهت جلستك. يرجى تسجيل الدخول مرة أخرى';
           localStorage.removeItem('fiqh_token');
-          // Don't redirect here, let the component handle it
+          window.dispatchEvent(new CustomEvent('auth:logout'));
         } else if (res.status === 404) {
           errorMessage = errorDetails?.message || 'المورد المطلوب غير موجود';
         } else if (res.status === 409) {
@@ -54,7 +110,13 @@ const api = {
         throw new ApiError(errorMessage, res.status, errorDetails);
       }
       
-      return await res.json();
+      // Handle empty responses
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return await res.json();
+      }
+      
+      return null;
     } catch (error) {
       if (error.name === 'AbortError') {
         throw new ApiError('انتهت مهلة الطلب. تحقق من اتصالك بالإنترنت', 0);
@@ -64,140 +126,170 @@ const api = {
     }
   },
 
-  // Auth endpoints
-  register(data) {
+  // ============ Auth Endpoints ============
+  async register(data) {
     return api.request('/auth/register', { 
       method: 'POST', 
       body: JSON.stringify(data) 
     });
   },
   
-  login(data) {
+  async login(data) {
     return api.request('/auth/login', { 
       method: 'POST', 
       body: JSON.stringify(data) 
     });
   },
   
-  getCurrentUser(token) {
-    return api.request('/auth/me', { 
-      headers: { Authorization: `Bearer ${token}` } 
-    });
+  async getCurrentUser(token) {
+    return api.request('/auth/me', { token });
   },
 
-  // Category endpoints
-  getCategories(token) {
-    return api.request('/categories', { 
-      headers: { Authorization: `Bearer ${token}` } 
-    });
+  // ============ Category Endpoints ============
+  async getCategories(token) {
+    return retryRequest(() => api.request('/categories', { token }));
   },
   
-  getCategoryById(token, categoryId) {
-    return api.request(`/categories/${categoryId}`, { 
-      headers: { Authorization: `Bearer ${token}` } 
-    });
+  async getCategoryById(token, categoryId) {
+    return api.request(`/categories/${categoryId}`, { token });
   },
 
-  // Question endpoints
-  getRandomQuestions(token, limit = 10) {
-    return api.request(`/questions/random?limit=${limit}`, { 
-      headers: { Authorization: `Bearer ${token}` } 
-    });
+  // ============ Question Endpoints ============
+  async getRandomQuestions(token, limit = 10) {
+    return api.request(`/questions/random?limit=${limit}`, { token });
   },
   
-  getCategoryQuestions(token, categoryId, limit = 10) {
-    return api.request(`/questions/category/${categoryId}?limit=${limit}`, { 
-      headers: { Authorization: `Bearer ${token}` } 
-    });
+  async getCategoryQuestions(token, categoryId, limit = 10) {
+    return api.request(`/questions/category/${categoryId}?limit=${limit}`, { token });
   },
   
-  getQuestionById(token, questionId) {
-    return api.request(`/questions/${questionId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+  async getQuestionById(token, questionId) {
+    return api.request(`/questions/${questionId}`, { token });
   },
 
-  // Quiz endpoints
-  startQuiz(token, data) {
+  // ============ Quiz Endpoints ============
+  async startQuiz(token, data) {
     return api.request('/quiz/start', { 
       method: 'POST', 
-      headers: { Authorization: `Bearer ${token}` },
+      token,
       body: JSON.stringify(data)
     });
   },
   
-  submitAnswer(token, data) {
+  async submitAnswer(token, data) {
     return api.request('/quiz/answer', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
+      token,
       body: JSON.stringify(data)
     });
   },
   
-  completeQuiz(token, quizAttemptId, timeTaken) {
+  async completeQuiz(token, quizAttemptId, timeTaken) {
     return api.request(`/quiz/complete/${quizAttemptId}?timeTaken=${timeTaken}`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` }
+      token
     });
   },
   
-  getQuizHistory(token) {
-    return api.request('/quiz/history', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+  async getQuizHistory(token, page = 0, size = 20) {
+    return api.request(`/quiz/history?page=${page}&size=${size}`, { token });
   },
   
-  getQuizResult(token, quizAttemptId) {
-    return api.request(`/quiz/${quizAttemptId}`, {
-      headers: { Authorization: `Bearer ${token}` }
+  async getQuizResult(token, quizAttemptId) {
+    return api.request(`/quiz/${quizAttemptId}`, { token });
+  },
+
+  // ============ User Endpoints ============
+  async getUserProfile(token) {
+    return api.request('/user/profile', { token });
+  },
+
+  async updateUserProfile(token, data) {
+    return api.request('/user/profile', {
+      method: 'PUT',
+      token,
+      body: JSON.stringify(data)
     });
   },
 
-  // User endpoints
-  getUserStats(token) {
-    return api.request('/user/stats', { 
-      headers: { Authorization: `Bearer ${token}` } 
-    });
+  async getUserStats(token) {
+    return api.request('/user/stats', { token });
   },
   
-  getBookmarks(token) {
-    return api.request('/user/bookmarks', { 
-      headers: { Authorization: `Bearer ${token}` } 
-    });
+  async getBookmarks(token) {
+    return api.request('/user/bookmarks', { token });
   },
   
-  addBookmark(token, questionId, notes = '') {
+  async addBookmark(token, questionId, notes = '') {
     return api.request(`/user/bookmarks/${questionId}`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
+      token,
       body: JSON.stringify({ notes })
     });
   },
   
-  removeBookmark(token, questionId) {
+  async removeBookmark(token, questionId) {
     return api.request(`/user/bookmarks/${questionId}`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` }
+      token
     });
   },
 
-  // Leaderboard endpoints
-  getLeaderboard(token, limit = 50) {
-    return api.request(`/leaderboard?limit=${limit}`, {
-      headers: { Authorization: `Bearer ${token}` }
+  async updateBookmarkNotes(token, questionId, notes) {
+    return api.request(`/user/bookmarks/${questionId}/notes`, {
+      method: 'PUT',
+      token,
+      body: JSON.stringify({ notes })
     });
   },
-  
-  getCategoryLeaderboard(token, categoryId, limit = 50) {
-    return api.request(`/leaderboard/category/${categoryId}?limit=${limit}`, {
-      headers: { Authorization: `Bearer ${token}` }
+
+  async updateDifficultyLevel(token, level) {
+    return api.request('/user/settings/difficulty', {
+      method: 'PUT',
+      token,
+      body: JSON.stringify({ level })
     });
   },
-  
-  getStreakLeaderboard(token, limit = 50) {
-    return api.request(`/leaderboard/streak?limit=${limit}`, {
-      headers: { Authorization: `Bearer ${token}` }
+
+  async toggleDailyReminder(token, enabled) {
+    return api.request('/user/settings/reminders', {
+      method: 'PUT',
+      token,
+      body: JSON.stringify({ enabled })
     });
+  },
+
+  async updatePreferredLanguage(token, language) {
+    return api.request('/user/settings/language', {
+      method: 'PUT',
+      token,
+      body: JSON.stringify({ language })
+    });
+  },
+
+  async updatePreferredMarja(token, marjaId) {
+    return api.request('/user/settings/marja', {
+      method: 'PUT',
+      token,
+      body: JSON.stringify({ marjaId })
+    });
+  },
+
+  // ============ Leaderboard Endpoints ============
+  async getLeaderboard(token, limit = 50) {
+    return api.request(`/leaderboard?limit=${limit}`, { token });
+  },
+  
+  async getCategoryLeaderboard(token, categoryId, limit = 50) {
+    return api.request(`/leaderboard/category/${categoryId}?limit=${limit}`, { token });
+  },
+  
+  async getStreakLeaderboard(token, limit = 50) {
+    return api.request(`/leaderboard/streak?limit=${limit}`, { token });
+  },
+
+  async getUserRank(token) {
+    return api.request('/leaderboard/me', { token });
   }
 };
 
