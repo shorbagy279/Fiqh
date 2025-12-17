@@ -148,43 +148,51 @@ const HomeScreen = ({ navigate }) => {
             اختر طريقة التعلم
           </h2>
 
-          <div className="space-y-3">
-            <QuickModeCard
-              title="اختبار عشوائي"
-              description="أسئلة متنوعة من جميع الأقسام"
-              icon="🎲"
-              color="bg-gradient-to-br from-blue-500 to-blue-600"
-              onClick={() => openQuizOptions('random')}
-            />
-            <QuickModeCard
-              title="اختر قسماً محدداً"
-              description="تدرب على موضوع معين"
-              icon="📚"
-              color="bg-gradient-to-br from-purple-500 to-purple-600"
-              onClick={() => navigate('categories')}
-            />
-            <QuickModeCard
-              title="اختبار مخصص متقدم"
-              description="اختر الأسئلة يدوياً ووقت الاختبار"
-              icon="⚙️"
-              color="bg-gradient-to-br from-indigo-500 to-indigo-600"
-              onClick={() => navigate('customQuiz')}
-            />
-            <QuickModeCard
-              title="الأسئلة المحفوظة"
-              description="راجع الأسئلة الصعبة"
-              icon="⭐"
-              color="bg-gradient-to-br from-pink-500 to-pink-600"
-              onClick={() => navigate('bookmarks')}
-            />
-            <QuickModeCard
-              title="لوحة المتصدرين"
-              description="تنافس مع المستخدمين"
-              icon="🏆"
-              color="bg-gradient-to-br from-yellow-500 to-orange-500"
-              onClick={() => navigate('leaderboard')}
-            />
-          </div>
+          
+<div className="space-y-3">
+  <QuickModeCard
+    title="اختبار عشوائي"
+    description="أسئلة متنوعة من جميع الأقسام"
+    icon="🎲"
+    color="bg-gradient-to-br from-blue-500 to-blue-600"
+    onClick={() => openQuizOptions('random')}
+  />
+  <QuickModeCard
+    title="اختر قسماً محدداً"
+    description="تدرب على موضوع معين"
+    icon="📚"
+    color="bg-gradient-to-br from-purple-500 to-purple-600"
+    onClick={() => navigate('categories')}
+  />
+  <QuickModeCard
+    title="اختبار مخصص متقدم"
+    description="اختر الأسئلة يدوياً ووقت الاختبار"
+    icon="⚙️"
+    color="bg-gradient-to-br from-indigo-500 to-indigo-600"
+    onClick={() => navigate('customQuiz')}
+  />
+  <QuickModeCard
+    title="انضم لاختبار مجدول"
+    description="أدخل كود الاختبار للانضمام"
+    icon="🎫"
+    color="bg-gradient-to-br from-teal-500 to-cyan-600"
+    onClick={() => navigate('joinExam')}
+  />
+  <QuickModeCard
+    title="الأسئلة المحفوظة"
+    description="راجع الأسئلة الصعبة"
+    icon="⭐"
+    color="bg-gradient-to-br from-pink-500 to-pink-600"
+    onClick={() => navigate('bookmarks')}
+  />
+  <QuickModeCard
+    title="لوحة المتصدرين"
+    description="تنافس مع المستخدمين"
+    icon="🏆"
+    color="bg-gradient-to-br from-yellow-500 to-orange-500"
+    onClick={() => navigate('leaderboard')}
+  />
+</div>
         </div>
 
         {/* Enhanced Stats Preview with Real Data */}

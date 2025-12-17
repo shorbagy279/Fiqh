@@ -18,6 +18,10 @@ import ProfileScreen from '../screens/main/ProfileScreen';
 import BookmarksScreen from '../screens/main/BookmarksScreen';
 import LeaderboardScreen from '../screens/main/LeaderboardScreen';
 
+// New Scheduled Exam Screens
+import ScheduleExamScreen from '../screens/main/ScheduleExamScreen';
+import JoinExamScreen from '../screens/main/JoinExamScreen';
+
 const AppRoutes = () => {
   const { user, loading } = useAuth();
   const [currentScreen, setCurrentScreen] = useState('splash');
@@ -54,6 +58,8 @@ const AppRoutes = () => {
     categories: <CategoriesScreen navigate={navigate} />,
     quiz: <QuizScreen navigate={navigate} data={screenData} />,
     customQuiz: <CustomQuizScreen navigate={navigate} />,
+    scheduleExam: <ScheduleExamScreen navigate={navigate} data={screenData} />,
+    joinExam: <JoinExamScreen navigate={navigate} />,
     results: <ResultsScreen navigate={navigate} data={screenData} />,
     stats: <StatsScreen navigate={navigate} />,
     profile: <ProfileScreen navigate={navigate} />,

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
-import { Settings, Clock, BookOpen, ChevronRight, ChevronDown, Check, PlayCircle, X } from 'lucide-react';
+import { Settings, Clock,Calendar, BookOpen, ChevronRight, ChevronDown, Check, PlayCircle, X } from 'lucide-react';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 
 const CustomQuizScreen = ({ navigate }) => {
@@ -355,6 +355,21 @@ const CustomQuizScreen = ({ navigate }) => {
               <PlayCircle size={20} />
               ابدأ الاختبار
             </button>
+            {/* Schedule Exam Button - Add after the regular start button */}
+{selectedQuestions.length > 0 && (
+  <div className="fixed bottom-24 left-6 right-6 max-w-md mx-auto">
+    <button
+      onClick={() => navigate('scheduleExam', { 
+        selectedQuestions, 
+        categories 
+      })}
+      className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-4 rounded-2xl font-bold text-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-2xl hover:shadow-3xl flex items-center justify-center gap-2"
+    >
+      <Calendar size={24} />
+      جدولة الاختبار ({selectedQuestions.length} سؤال)
+    </button>
+  </div>
+)}
           </div>
         </div>
       )}
